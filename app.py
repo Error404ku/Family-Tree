@@ -91,8 +91,8 @@ def main():
                             else:
                                 for item in data:
                                     st.write(f"{item['Relasi']}: {item['Nama']}")
-                    else:
-                        st.write(f"Tidak ada data relasi yang dipilih untuk {person_name}.")
+                    # else:
+                    #     st.write(f"Tidak ada data relasi yang dipilih untuk {person_name}.")
 
                     # Perform and display search steps
                     if display_option in ["Langkah-langkah Proses Pencarian", "Keduanya"]:

@@ -173,6 +173,107 @@ def add_relation(person, relation, name, gender):
 
         else:
             st.error(f"Relasi '{relation}' belum diimplementasikan.")
+# Fungsi untuk membuat relasi Saudara secara otomatis
+def create_siblings(session, parent_name, child_name):
+    # Cari semua anak dari orang tua yang sama kecuali anak yang baru ditambahkan
+    siblings = session.run("""
+        MATCH (parent:Person)-[:FATHER_OF|MOTHER_OF]->(sibling:Person)
+        WHERE parent.name = $parent_name AND sibling.name <> $child_name
+        RETURN DISTINCT sibling.name AS sibling_name
+        """, parent_name=parent_name, child_name=child_name)
+
+    for record in siblings:
+        sibling_name = record['sibling_name']
+        # Tambahkan relasi Saudara dua arah
+        session.run("""
+            MATCH (p1:Person {name: $person1}), (p2:Person {name: $person2})
+            MERGE (p1)-[:SAUDARA]-(p2)
+            """, person1=child_name, person2=sibling_name)
+        st.write(f"Membuat relasi SAUDARA antara {child_name} dan {sibling_name}")
+
+# Fungsi untuk membuat relasi Paman/Bibi secara otomatis
+def create_uncles_aunts(session, child_name):
+    # Cari ayah dan ibu dari anak
+    parents = session.run("""
+        MATCH (parent:Person)-[:FATHER_OF|MOTHER_OF]->(child:Person {name: $child_name})
+        RETURN parent.name AS parent_name, parent.gender AS parent_gender
+        """, child_name=child_name)
+
+    for record in parents:
+        parent_name = record['parent_name']
+        parent_gender = record['parent_gender']
+        # Cari saudara kandung dari orang tua (paman/bibi)
+        siblings = session.run("""
+            MATCH (sibling:Person)-[:SAUDARA]-(parent:Person {name: $parent_name})
+            RETURN sibling.name AS sibling_name, sibling.gender AS sibling_gender
+            """, parent_name=parent_name)
+
+        for sib in siblings:
+            sibling_name = sib['sibling_name']
+            sibling_gender = sib['sibling_gender']
+            if sibling_gender == 'male':
+                # Sibling adalah paman
+                session.run("""
+                    MATCH (uncle:Person {name: $uncle_name}), (child:Person {name: $child_name})
+                    MERGE (uncle)-[:PAMAN_OF]->(child)
+                    """, uncle_name=sibling_name, child_name=child_name)
+                st.write(f"Membuat relasi PAMAN_OF antara {sibling_name} dan {child_name}")
+            elif sibling_gender == 'female':
+                # Sibling adalah bibi
+                session.run("""
+                    MATCH (aunt:Person {name: $aunt_name}), (child:Person {name: $child_name})
+                    MERGE (aunt)-[:BIBI_OF]->(child)
+                    """, aunt_name=sibling_name, child_name=child_name)
+                st.write(f"Membuat relasi BIBI_OF antara {sibling_name} dan {child_name}")
+
+# Fungsi untuk membuat relasi Sepupu secara otomatis
+def create_sepupu(session, parent_name, child_name):
+    # Cari saudara kandung dari parent_name (orang tua)
+    siblings = session.run("""
+        MATCH (sibling:Person)-[:SAUDARA]-(parent:Person {name: $parent_name})
+        RETURN sibling.name AS sibling_name
+        """, parent_name=parent_name)
+
+    for record in siblings:
+        sibling_name = record['sibling_name']
+        st.write(f"Menemukan saudara dari {parent_name}: {sibling_name}")
+
+        # Cari anak-anak dari saudara kandung tersebut (sepupu)
+        cousins = session.run("""
+            MATCH (sibling:Person {name: $sibling_name})-[:FATHER_OF|MOTHER_OF]->(cousin:Person)
+            RETURN cousin.name AS cousin_name
+            """, sibling_name=sibling_name)
+
+        for cousin in cousins:
+            cousin_name = cousin['cousin_name']
+            if cousin_name != child_name:  # Hindari membuat sepupu diri sendiri
+                # Buat relasi Sepupu dua arah
+                session.run("""
+                    MATCH (child_p:Person {name: $child_p}), (cousin:Person {name: $cousin_name})
+                    MERGE (child_p)-[:SEPUPU]->(cousin)
+                    MERGE (cousin)-[:SEPUPU]->(child_p)
+                    """, child_p=child_name, cousin_name=cousin_name)
+                st.success(f"Membuat relasi Sepupu antara {child_name} dan {cousin_name}")
+
+# Fungsi untuk membuat relasi Mertua secara otomatis
+def create_inlaws(session, person_name, spouse_name):
+    # Cari orang tua dari orang yang dinikahi
+    parents = session.run("""
+        MATCH (parent:Person)-[:FATHER_OF|MOTHER_OF]->(spouse:Person {name: $spouse_name})
+        RETURN parent.name AS parent_name, parent.gender AS parent_gender
+        """, spouse_name=spouse_name)
+
+    for record in parents:
+        parent_name = record['parent_name']
+        parent_gender = record['parent_gender']
+        # Tambahkan relasi Mertua dua arah
+        session.run("""
+            MATCH (mertua:Person {name: $parent_name}), (menantu:Person {name: $person_name})
+            MERGE (mertua)-[:MERTUA_OF]->(menantu)
+            MERGE (menantu)-[:MENANTU_OF]->(mertua)
+            """, parent_name=parent_name, person_name=person_name)
+        st.write(f"Membuat relasi MERTUA_OF antara {parent_name} dan {person_name}")
+
 
 def delete_individual(name):
     with driver.session() as session:

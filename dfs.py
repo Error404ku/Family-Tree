@@ -1,71 +1,90 @@
 import heapq
+def get_root_ancestors(family_tree):
+    root_ancestors = []
+    for person, data in family_tree.items():
+        if not data.get('father') and not data.get('mother'):
+            root_ancestors.append(person)
+    return root_ancestors
 
 def find_person_dfs(family_tree, target_person, max_level=20):
     steps = []
-    found = False
-
     visited = set()
     stack = []
 
-    # Get root ancestors and prioritize starting from specific individuals
-    initial_persons = get_root_ancestors(family_tree)
-    initial_persons_ordered = []
-    if 'Abdul Muthalib' in initial_persons:
-        initial_persons_ordered.append('Abdul Muthalib')
-        initial_persons.remove('Abdul Muthalib')
-    if 'Wahab bin Abdu Manaf' in initial_persons:
-        initial_persons_ordered.append('Wahab bin Abdu Manaf')
-        initial_persons.remove('Wahab bin Abdu Manaf')
-    initial_persons_ordered.extend(initial_persons)
+    # Temukan semua leluhur tertinggi (orang tanpa ayah dan ibu)
+    top_ancestors = [person for person, data in family_tree.items() if data.get('father') is None and data.get('mother') is None]
 
-    # Add initial persons to the stack
-    for initial_person in reversed(initial_persons_ordered):  # reversed for LIFO
-        stack.append([initial_person])
+    found = False
+
+    for ancestor in top_ancestors:
+        # Tambahkan leluhur ke stack
+        stack.append({
+            'current_person': ancestor,
+            'path': [ancestor],
+            'level': 1,
+            'child_index': 0
+        })
         steps.append({
-            "Action": "Add to Stack",
-            "Person": initial_person,
-            "Path": initial_person
+            'Action': 'Add to Stack',
+            'Person': ancestor,
+            'Path': ' -> '.join([ancestor]),
+            'Level': 1
         })
 
-    # Start the DFS
-    while stack:
-        path = stack.pop()
-        current = path[-1]
+        while stack:
+            node = stack[-1]  # Lihat node di atas stack tanpa menghapusnya
+            current_person = node['current_person']
+            path = node['path']
+            level = node['level']
+            child_index = node['child_index']
 
-        if current in visited:
-            continue
-
-        visited.add(current)
-        steps.append({
-            "Action": "Visit",
-            "Person": current,
-            "Path": " -> ".join(path)
-        })
-
-        if current == target_person:
-            found = True
-            break
-
-        # Get neighbors (relationships)
-        neighbors = []
-        data = family_tree.get(current, {})
-        for relation in ['spouse', 'father', 'mother', 'children', 'siblings', 'uncles_aunts', 'cousins', 'inlaws']:
-            neighbor = data.get(relation)
-            if isinstance(neighbor, list):
-                neighbors.extend(neighbor)
-            elif neighbor:
-                neighbors.append(neighbor)
-
-        # Add neighbors to the stack
-        for neighbor in reversed(neighbors):  # reversed for LIFO
-            if neighbor not in visited:
-                new_path = path + [neighbor]
-                stack.append(new_path)
+            if current_person not in visited:
+                # Tandai sebagai telah dikunjungi dan catat langkah "Visit"
                 steps.append({
-                    "Action": "Add to Stack",
-                    "Person": neighbor,
-                    "Path": " -> ".join(new_path)
+                    'Action': 'Visit',
+                    'Person': current_person,
+                    'Path': ' -> '.join(path),
+                    'Level': level
                 })
+                visited.add(current_person)
+
+            if current_person == target_person:
+                found = True
+                break
+
+            # Dapatkan anak-anak dari orang saat ini
+            children = family_tree[current_person].get('children', [])
+
+            if child_index < len(children) and level < max_level:
+                next_child = children[child_index]
+                node['child_index'] += 1  # Increment child index untuk node saat ini
+
+                if next_child not in visited:
+                    # Tambahkan tetangga (anak) ke stack
+                    stack.append({
+                        'current_person': next_child,
+                        'path': path + [next_child],
+                        'level': level + 1,
+                        'child_index': 0
+                    })
+                    steps.append({
+                        'Action': 'Add to Stack',
+                        'Person': next_child,
+                        'Path': ' -> '.join(path + [next_child]),
+                        'Level': level + 1
+                    })
+            else:
+                # Semua anak telah diproses, lakukan backtrack
+                popped_node = stack.pop()
+                steps.append({
+                    'Action': 'Backtrack',
+                    'Person': popped_node['current_person'],
+                    'Path': ' -> '.join(popped_node['path']),
+                    'Level': popped_node['level']
+                })
+
+        if found:
+            break
 
     return steps, found
 
