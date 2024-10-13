@@ -1,9 +1,5 @@
-# greedy_best_first.py
-
 import heapq
-from neo4j_operation import get_root_ancestors
 
-# Fungsi Heuristik yang Diperbarui
 def heuristic(current, target, family_tree, depth=0):
     if current == target:
         return 0
@@ -30,7 +26,6 @@ def heuristic(current, target, family_tree, depth=0):
             min_h = min(min_h, weight)
     return min_h
 
-# Fungsi Greedy Best-First Search dengan Heuristik yang Diperbarui
 def find_person_greedy(family_tree, target_person, max_level=20):
     steps = []
     found = False
@@ -106,3 +101,10 @@ def find_person_greedy(family_tree, target_person, max_level=20):
                 })
 
     return steps, found
+
+def get_root_ancestors(family_tree):
+    root_ancestors = []
+    for person, data in family_tree.items():
+        if not data.get('father') and not data.get('mother'):
+            root_ancestors.append(person)
+    return root_ancestors

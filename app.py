@@ -1,14 +1,7 @@
-# app.py
-
 import streamlit as st
 import pandas as pd
-from neo4j_operation import (
-    get_all_individuals,
-    get_family_tree,
-    add_relation,
-    delete_individual,
-    update_all_relations
-)
+from config import driver  # Import driver dari config.py
+from neo4j_operation import add_relation, delete_individual, update_all_relations, get_all_individuals, get_family_tree
 from dfs import find_person_dfs, get_ancestors, get_descendants
 from greedy_best_first import find_person_greedy
 
@@ -89,8 +82,7 @@ def main():
                             results["Mertua"] = [{"Relasi": "Mertua", "Nama": "Tidak ada mertua"}]
 
                     # Display relationships
-                    if results and ("Leluhur" in results or "Keturunan" in results or "Pasangan" in results or
-                                   "Saudara" in results or "Paman/Bibi" in results or "Sepupu" in results or "Mertua" in results):
+                    if results:
                         for relation, data in results.items():
                             st.write(f"**{relation} dari {person_name}:**")
                             if view_type == "Tabel":
@@ -161,12 +153,11 @@ def main():
             selected_person = None
 
         if selected_person:
-            relation_type = st.selectbox("Pilih jenis relasi:",
-                                         ("Ayah", "Ibu", "Anak", "Suami", "Istri", "Saudara", "Mertua", "Sepupu"))
+            relation_type = st.selectbox("Pilih jenis relasi:", ("Ayah", "Ibu", "Anak", "Suami", "Istri", "Saudara", "Mertua", "Sepupu"))
 
             # Input nama orang yang akan menjadi relasi
             relation_name = st.text_input(f"Nama {relation_type.lower()}:")
-
+            
             # Input jenis kelamin jika diperlukan
             relation_gender = st.selectbox(
                 "Jenis kelamin:",
@@ -175,21 +166,15 @@ def main():
 
             if st.button(f"Tambahkan {relation_type}"):
                 if relation_name:
-                    # Validasi untuk relasi tertentu yang harus unik (misalnya Ayah, Ibu, Suami, Istri)
-                    if relation_type in ["Ayah", "Ibu", "Suami", "Istri"] and relation_name in all_individuals:
-                        st.error(f"Individu dengan nama {relation_name} sudah ada dalam sistem. Silakan gunakan nama unik.")
-                    else:
-                        add_relation(
-                            selected_person,
-                            relation_type,
-                            relation_name,
-                            relation_gender if relation_type in ["Anak", "Suami", "Istri"] else None
-                        )
-                        st.success(
-                            f"{relation_type} {relation_name} telah ditambahkan untuk {selected_person}."
-                        )
-                        # Refresh the list of individuals setelah menambah relasi
-                        all_individuals = get_all_individuals()
+                    add_relation(
+                        selected_person,
+                        relation_type,
+                        relation_name,
+                        relation_gender if relation_type in ["Anak", "Suami", "Istri"] else None
+                    )
+                    st.success(f"{relation_type} {relation_name} telah ditambahkan untuk {selected_person}.")
+                    # Refresh the list of individuals setelah menambah relasi
+                    all_individuals = get_all_individuals()
                 else:
                     st.error(f"Nama {relation_type.lower()} tidak boleh kosong.")
 
