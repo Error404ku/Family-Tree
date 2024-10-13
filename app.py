@@ -11,6 +11,7 @@ from neo4j_operation import (
 )
 from dfs import find_person_dfs
 from greedy_best_first import find_person_greedy
+from config import driver  # Make sure to import driver
 
 def main():
     st.title("Sistem Silsilah Keluarga Interaktif")
