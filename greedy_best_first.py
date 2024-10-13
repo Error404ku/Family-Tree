@@ -1,43 +1,40 @@
-# greedy_best_first.py
+# gbfs.py
 
 import heapq
+from neo4j_operation import get_family_tree, get_root_ancestors
+import streamlit as st
 
+# Fungsi Heuristik yang Diperbarui
+def heuristic(current, target, family_tree, depth=0):
+    if current == target:
+        return 0
+    # Tentukan hubungan dan beratnya berdasarkan generasi
+    # Semakin jauh generasinya, semakin tinggi beratnya
+    relations = {
+        'spouse': 1*5,
+        'children': 2*5 + depth,
+        'siblings': 2*5 + depth,
+        'father': 2*5 + depth,
+        'mother': 2*5 + depth,
+        'uncles_aunts': 3*5 + depth,
+        'cousins': 4*5 + depth,
+        'inlaws': 5*5 + depth
+    }
+    min_h = 20*5 - depth * 5 # Default heuristic value bertambah dengan kedalaman
+    data = family_tree.get(current, {})
+    for rel, weight in relations.items():
+        neighbor = data.get(rel)
+        if isinstance(neighbor, list):
+            if target in neighbor:
+                min_h = min(min_h, weight)
+        elif neighbor == target:
+            min_h = min(min_h, weight)
+    return min_h
+
+# Fungsi Greedy Best-First Search dengan Heuristik yang Diperbarui
 def find_person_greedy(family_tree, target_person, max_level=20):
     steps = []
     found = False
-
-    # Fungsi Heuristik
-    def heuristic(current, target):
-        if current == target:
-            return 0
-        relations = {
-            'spouse': 1,
-            'children': 2,
-            'siblings': 2,
-            'father': 2,
-            'mother': 2,
-            'uncles_aunts': 3,
-            'cousins': 4,
-            'inlaws': 5
-        }
-        min_h = 6  # Default heuristic value
-        data = family_tree.get(current, {})
-        for rel, weight in relations.items():
-            neighbor = data.get(rel)
-            if isinstance(neighbor, list):
-                if target in neighbor:
-                    min_h = min(min_h, weight)
-            elif neighbor == target:
-                min_h = min(min_h, weight)
-        return min_h
-
-    # Fungsi untuk menemukan leluhur tertinggi
-    def get_root_ancestors(family_tree):
-        root_ancestors = []
-        for person, data in family_tree.items():
-            if not data.get('father') and not data.get('mother'):
-                root_ancestors.append(person)
-        return root_ancestors
 
     # Initialize priority queue
     priority_queue = []
@@ -56,7 +53,7 @@ def find_person_greedy(family_tree, target_person, max_level=20):
 
     # Add initial persons to the priority queue
     for initial_person in initial_persons_ordered:
-        initial_h = heuristic(initial_person, target_person)
+        initial_h = heuristic(initial_person, target_person, family_tree, depth=0)
         heapq.heappush(priority_queue, (initial_h, [initial_person]))
         steps.append({
             "Action": "Add to Queue",
@@ -69,6 +66,7 @@ def find_person_greedy(family_tree, target_person, max_level=20):
     while priority_queue:
         current_h, path = heapq.heappop(priority_queue)
         current = path[-1]
+        depth = len(path) - 1  # Depth dihitung dari jalur
 
         if current in visited:
             continue
@@ -99,7 +97,7 @@ def find_person_greedy(family_tree, target_person, max_level=20):
         for neighbor in neighbors:
             if neighbor not in visited:
                 new_path = path + [neighbor]
-                hn = heuristic(neighbor, target_person)
+                hn = heuristic(neighbor, target_person, family_tree, depth=len(new_path) -1)
                 heapq.heappush(priority_queue, (hn, new_path))
                 steps.append({
                     "Action": "Add to Queue",

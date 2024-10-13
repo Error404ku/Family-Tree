@@ -4,9 +4,18 @@ import streamlit as st
 from config import driver
 import pandas as pd
 
+# Mengelola driver Neo4j dengan cache_resource
+@st.cache_resource
+def get_driver():
+    return driver
+
+driver = get_driver()
+
 # Fungsi untuk menutup driver saat aplikasi selesai
 def close_driver():
     driver.close()
+
+# === Fungsi Utama ===
 
 # Fungsi untuk menambah relasi
 def add_relation(person, relation, name, gender):
@@ -555,21 +564,21 @@ def update_all_relations():
                         session.run("""
                             MATCH (uncle:Person {name: $sibling_name}), (child:Person {name: $child_name})
                             MERGE (uncle)-[:PAMAN_OF]->(child)
-                        """, sibling_name=sibling_name, child_name=person)
+                            """, sibling_name=sibling_name, child_name=person)
                         st.success(f"Membuat relasi PAMAN_OF antara {sibling_name} dan {person}")
                     elif sibling_gender == 'female':
                         # Sibling adalah bibi
                         session.run("""
                             MATCH (aunt:Person {name: $sibling_name}), (child:Person {name: $child_name})
                             MERGE (aunt)-[:BIBI_OF]->(child)
-                        """, sibling_name=sibling_name, child_name=person)
+                            """, sibling_name=sibling_name, child_name=person)
                         st.success(f"Membuat relasi BIBI_OF antara {sibling_name} dan {person}")
 
         # --- Akhir Penambahan Logika untuk Relasi Paman dan Bibi ---
 
         st.write("Selesai memperbarui semua relasi.")
 
-# Fungsi untuk menghapus individu
+# Fungsi untuk menghapus individu dari sistem
 def delete_individual(name):
     with driver.session() as session:
         # Hapus node Person dan semua relasi yang terkait
