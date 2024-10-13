@@ -1,8 +1,7 @@
-# gbfs.py
+# greedy_best_first.py
 
 import heapq
-from neo4j_operation import get_family_tree, get_root_ancestors
-import streamlit as st
+from neo4j_operation import get_root_ancestors
 
 # Fungsi Heuristik yang Diperbarui
 def heuristic(current, target, family_tree, depth=0):

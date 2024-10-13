@@ -3,13 +3,14 @@
 import streamlit as st
 import pandas as pd
 from neo4j_operation import (
-    add_relation, get_family_tree, get_all_individuals,
-    update_all_relations, delete_individual
+    get_all_individuals,
+    get_family_tree,
+    add_relation,
+    delete_individual,
+    update_all_relations
 )
 from dfs import find_person_dfs, get_ancestors, get_descendants
 from greedy_best_first import find_person_greedy
-import heapq
-from config import driver  # Untuk menambahkan individu baru
 
 def main():
     st.title("Sistem Silsilah Keluarga Interaktif")
@@ -137,7 +138,7 @@ def main():
                     st.error(f"Individu dengan nama {new_person_name} sudah ada dalam sistem.")
                 else:
                     # Tambahkan individu ke Neo4j
-                    with driver_instance.session() as session:
+                    with driver.session() as session:
                         session.run("""
                             MERGE (p:Person {name: $person_name})
                             SET p.gender = $person_gender
@@ -165,7 +166,7 @@ def main():
 
             # Input nama orang yang akan menjadi relasi
             relation_name = st.text_input(f"Nama {relation_type.lower()}:")
-            
+
             # Input jenis kelamin jika diperlukan
             relation_gender = st.selectbox(
                 "Jenis kelamin:",

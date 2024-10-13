@@ -2,34 +2,26 @@
 
 import streamlit as st
 from config import driver
-import pandas as pd
-
-# Mengelola driver Neo4j dengan cache_resource
-@st.cache_resource
-def get_driver():
-    return driver
-
-driver_instance = get_driver()
 
 # Fungsi untuk menutup driver saat aplikasi selesai
 def close_driver():
-    driver_instance.close()
+    driver.close()
 
 # Fungsi untuk menambah relasi
 def add_relation(person, relation, name, gender):
-    with driver_instance.session() as session:
+    with driver.session() as session:
         # Pastikan node `person` ada
         session.run("""
             MERGE (p:Person {name: $person_name})
             ON CREATE SET p.gender = $person_gender
             """, person_name=person, person_gender="unknown")
-
+    
         # Pastikan node `name` ada
         session.run("""
             MERGE (r:Person {name: $relation_name})
             ON CREATE SET r.gender = $relation_gender
             """, relation_name=name, relation_gender=gender if gender else "unknown")
-
+    
         # Tambahkan relasi sesuai jenisnya
         if relation == "Ayah":
             st.write(f"Menambahkan relasi Ayah: {name} adalah Ayah dari {person}")
@@ -53,7 +45,7 @@ def add_relation(person, relation, name, gender):
             create_siblings(session, parent_name=name, child_name=person)
             create_uncles_aunts(session, child_name=person)
             create_sepupu(session, parent_name=name, child_name=person)
-
+    
         elif relation == "Ibu":
             st.write(f"Menambahkan relasi Ibu: {name} adalah Ibu dari {person}")
             session.run("""
@@ -76,7 +68,7 @@ def add_relation(person, relation, name, gender):
             create_siblings(session, parent_name=name, child_name=person)
             create_uncles_aunts(session, child_name=person)
             create_sepupu(session, parent_name=name, child_name=person)
-
+    
         elif relation == "Anak":
             st.write(f"Menambahkan relasi Anak: {name} adalah Anak dari {person}")
             # Ambil gender dari `person` dari database
@@ -109,7 +101,7 @@ def add_relation(person, relation, name, gender):
             create_uncles_aunts(session, child_name=name)
             # Otomatisasi relasi Sepupu
             create_sepupu(session, parent_name=person, child_name=name)
-
+    
         elif relation == "Suami":
             st.write(f"Menambahkan relasi Suami: {name} adalah Suami dari {person}")
             session.run("""
@@ -125,7 +117,7 @@ def add_relation(person, relation, name, gender):
             st.write(f"Mengatur gender 'female' untuk {person}")
             # Otomatisasi relasi mertua
             create_inlaws(session, person_name=name, spouse_name=person)
-
+    
         elif relation == "Istri":
             st.write(f"Menambahkan relasi Istri: {name} adalah Istri dari {person}")
             session.run("""
@@ -141,7 +133,7 @@ def add_relation(person, relation, name, gender):
             st.write(f"Mengatur gender 'male' untuk {person}")
             # Otomatisasi relasi mertua
             create_inlaws(session, person_name=name, spouse_name=person)
-
+    
         elif relation == "Saudara":
             st.write(f"Menambahkan relasi Saudara: {name} adalah Saudara dari {person}")
             session.run("""
@@ -149,18 +141,18 @@ def add_relation(person, relation, name, gender):
                 MERGE (p1)-[:SAUDARA]-(p2)
                 """, person1=person, person2=name)
             st.write(f"Membuat relasi SAUDARA antara {person} dan {name}")
-
+    
             # Setelah menambahkan hubungan saudara, perbarui sepupu untuk semua anak
             children_person = session.run("""
                 MATCH (p:Person {name: $person_name})-[:FATHER_OF|MOTHER_OF]->(child:Person)
                 RETURN child.name AS child_name
                 """, person_name=person).values("child_name")
-
+    
             children_sibling = session.run("""
                 MATCH (sibling:Person {name: $sibling_name})-[:FATHER_OF|MOTHER_OF]->(child:Person)
                 RETURN child.name AS child_name
                 """, sibling_name=name).values("child_name")
-
+    
             # Buat hubungan sepupu antara semua anak dari person dan anak dari saudara
             for child_p in children_person:
                 for child_s in children_sibling:
@@ -171,7 +163,7 @@ def add_relation(person, relation, name, gender):
                             MERGE (child_s)-[:SEPUPU]->(child_p)
                             """, child_p=child_p[0], child_s=child_s[0])
                         st.success(f"Membuat relasi SEPUPU antara {child_p[0]} dan {child_s[0]}")
-
+    
         elif relation == "Mertua":
             st.write(f"Menambahkan relasi Mertua: {name} adalah Mertua dari {person}")
             # Implementasi penambahan mertua
@@ -182,10 +174,10 @@ def add_relation(person, relation, name, gender):
                 MERGE (child)-[:MENANTU_OF]->(mertua)
                 """, relation_name=name, person_name=person)
             st.success(f"Membuat relasi MERTUA_OF dan MENANTU_OF antara {name} dan {person}")
-
+    
         elif relation == "Sepupu":
             st.warning("Penambahan relasi 'Sepupu' secara otomatis sudah diatur. Tidak perlu menambahkannya secara manual.")
-
+    
         else:
             st.error(f"Relasi '{relation}' belum diimplementasikan.")
 
@@ -293,7 +285,7 @@ def create_inlaws(session, person_name, spouse_name):
 # Fungsi untuk mengambil struktur keluarga dari Neo4j
 def get_family_tree():
     family_tree = {}
-    with driver_instance.session() as session:
+    with driver.session() as session:
         # Mengambil data individu
         result = session.run("""
             MATCH (p:Person)
@@ -413,13 +405,23 @@ def get_family_tree():
 
 # Fungsi untuk mendapatkan semua individu
 def get_all_individuals():
-    with driver_instance.session() as session:
+    with driver.session() as session:
         result = session.run("MATCH (p:Person) RETURN p.name AS name")
         return [record['name'] for record in result]
 
+# Fungsi untuk menghapus individu dari sistem
+def delete_individual(name):
+    with driver.session() as session:
+        # Hapus node Person dan semua relasi yang terkait
+        session.run("""
+            MATCH (p:Person {name: $name})
+            DETACH DELETE p
+            """, name=name)
+    st.success(f"Individu '{name}' dan semua relasinya telah dihapus dari sistem.")
+
 # Fungsi batch untuk memperbarui semua relasi berdasarkan data eksisting
 def update_all_relations():
-    with driver_instance.session() as session:
+    with driver.session() as session:
         st.write("Memulai pembaruan semua relasi...")
 
         # (Opsional) Menghapus semua relasi MERTUA_OF dan MENANTU_OF yang sudah ada
@@ -575,13 +577,3 @@ def update_all_relations():
         # --- Akhir Penambahan Logika untuk Relasi Paman dan Bibi ---
 
         st.write("Selesai memperbarui semua relasi.")
-
-# Fungsi untuk menghapus individu dari sistem
-def delete_individual(name):
-    with driver_instance.session() as session:
-        # Hapus node Person dan semua relasi yang terkait
-        session.run("""
-            MATCH (p:Person {name: $name})
-            DETACH DELETE p
-            """, name=name)
-    st.success(f"Individu '{name}' dan semua relasinya telah dihapus dari sistem.")
