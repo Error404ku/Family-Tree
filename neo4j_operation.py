@@ -9,17 +9,15 @@ import pandas as pd
 def get_driver():
     return driver
 
-driver = get_driver()
+driver_instance = get_driver()
 
 # Fungsi untuk menutup driver saat aplikasi selesai
 def close_driver():
-    driver.close()
-
-# === Fungsi Utama ===
+    driver_instance.close()
 
 # Fungsi untuk menambah relasi
 def add_relation(person, relation, name, gender):
-    with driver.session() as session:
+    with driver_instance.session() as session:
         # Pastikan node `person` ada
         session.run("""
             MERGE (p:Person {name: $person_name})
@@ -295,7 +293,7 @@ def create_inlaws(session, person_name, spouse_name):
 # Fungsi untuk mengambil struktur keluarga dari Neo4j
 def get_family_tree():
     family_tree = {}
-    with driver.session() as session:
+    with driver_instance.session() as session:
         # Mengambil data individu
         result = session.run("""
             MATCH (p:Person)
@@ -415,13 +413,13 @@ def get_family_tree():
 
 # Fungsi untuk mendapatkan semua individu
 def get_all_individuals():
-    with driver.session() as session:
+    with driver_instance.session() as session:
         result = session.run("MATCH (p:Person) RETURN p.name AS name")
         return [record['name'] for record in result]
 
 # Fungsi batch untuk memperbarui semua relasi berdasarkan data eksisting
 def update_all_relations():
-    with driver.session() as session:
+    with driver_instance.session() as session:
         st.write("Memulai pembaruan semua relasi...")
 
         # (Opsional) Menghapus semua relasi MERTUA_OF dan MENANTU_OF yang sudah ada
@@ -580,7 +578,7 @@ def update_all_relations():
 
 # Fungsi untuk menghapus individu dari sistem
 def delete_individual(name):
-    with driver.session() as session:
+    with driver_instance.session() as session:
         # Hapus node Person dan semua relasi yang terkait
         session.run("""
             MATCH (p:Person {name: $name})

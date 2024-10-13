@@ -7,8 +7,9 @@ from neo4j_operation import (
     update_all_relations, delete_individual
 )
 from dfs import find_person_dfs, get_ancestors, get_descendants
-from greedy_best_first import find_person_greedy, heuristic
+from greedy_best_first import find_person_greedy
 import heapq
+from config import driver  # Untuk menambahkan individu baru
 
 def main():
     st.title("Sistem Silsilah Keluarga Interaktif")
@@ -136,7 +137,7 @@ def main():
                     st.error(f"Individu dengan nama {new_person_name} sudah ada dalam sistem.")
                 else:
                     # Tambahkan individu ke Neo4j
-                    with driver.session() as session:
+                    with driver_instance.session() as session:
                         session.run("""
                             MERGE (p:Person {name: $person_name})
                             SET p.gender = $person_gender
